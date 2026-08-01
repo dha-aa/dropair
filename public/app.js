@@ -1,5 +1,6 @@
 const fileInput = document.getElementById("fileInput");
 const uploadButton = document.getElementById("uploadButton");
+const downloadContainer = document.getElementById("downloadContainer");
 
 async function fileUpload() {
     const files = fileInput.files;
@@ -24,4 +25,25 @@ async function fileUpload() {
     
 }
 
-uploadButton.addEventListener("click",fileUpload)
+uploadButton.addEventListener("click",fileUpload);
+
+async function getDownlaods() {
+    const response = await fetch("/api/files");
+    const files = await response.json();
+
+    files.forEach((file) => {
+        if(file.type === "file") {
+            const item = document.createElement("div");
+            item.innerHTML = `
+            <span>${file.filename}</span>
+            <a href="/download/${encodeURIComponent(file.filename)}">
+                    Download
+                </a>`
+            
+            downloadContainer.appendChild(item);
+        }
+    })
+    
+}
+
+getDownlaods();

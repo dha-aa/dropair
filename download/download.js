@@ -1,5 +1,5 @@
 import fs from "fs";
-import getCwd from "./cwd.js";
+import getCwd from "../utils/cwd.js";
 
 export default function  getFiles() {
     const cwd = getCwd()
@@ -10,14 +10,13 @@ export default function  getFiles() {
         const statas = fs.statSync(fullpath);
 
         listOfThing.push({
-            name: file,
+            filename: file,
             // fullpath: fullpath,
             type: statas.isDirectory() ? "folder":"file"
         })
     }
     return listOfThing;
     
-
 }
 
 // i will later add this  right now im learing   the how user dan able to download file

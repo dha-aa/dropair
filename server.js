@@ -5,8 +5,9 @@ import path from "path";
 // In built modile
 import { getLocalIP } from "./utils/ip.js";
 import getQrcode from "./utils/qr.js";
-import getFiles from "./utils/download.js";
 import { upload } from "./upload/storage.js";
+import getCwd from "./utils/cwd.js";
+import getFiles from "./download/download.js";
 
 const app = express();
 const PORT = 3000;
@@ -23,6 +24,17 @@ app.post("/upload",upload,(req,res) => {
 app.get("/api/files",(req,res) => {
     const files = getFiles()
     res.send(files)
+})
+
+const folderpath = getCwd();
+
+app.get("/download/:filename",(req,res) => {
+    const filename = req.params.filename;
+    const filepath = path.join(folderpath,filename);
+
+    res.download(filepath,filename ,(err) => {
+        console.log(err)
+    })
 })
 
 // local url
