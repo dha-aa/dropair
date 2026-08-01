@@ -1,5 +1,3 @@
-// src/ip.js
-
 import os from "os";
 
 export function getLocalIP() {
