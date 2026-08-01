@@ -1,8 +1,5 @@
 import multer from "multer";
-import getCwd from "./cwd.js";
-
-
-
+import getCwd from "../utils/cwd.js";
 
 const storage = multer.diskStorage({
     destination: (req,file,cb) => {
@@ -13,8 +10,4 @@ const storage = multer.diskStorage({
     }
 })
 
-const upload = multer({storage:storage}).array("file");
-
-export {
-    upload,
-}
+export const upload = multer({storage:storage}).array("file");

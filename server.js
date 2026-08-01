@@ -1,10 +1,10 @@
 import express from "express";
-import { upload } from "./utils/storage.js";
 import {fileURLToPath} from "url";
 import path from "path";
 import { getLocalIP } from "./utils/ip.js";
 import getQrcode from "./utils/qr.js";
 import getFiles from "./utils/download.js";
+import { upload } from "./upload/storage.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
