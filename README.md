@@ -62,34 +62,9 @@ Dropair will use your **current directory** for file sharing.
 
 ## 🔧 API
 
-### Upload
+### go to url
 
-```bash
-curl -F "file=@file.txt" http://<SERVER_IP>:3000/upload
-```
-
-Upload multiple files:
-
-```bash
-curl \
-  -F "file=@file1.txt" \
-  -F "file=@file2.txt" \
-  http://<SERVER_IP>:3000/upload
-```
-
-### List files
-
-```bash
-curl http://<SERVER_IP>:3000/api/files
-```
-
-### Download
-
-```bash
-curl -O http://<SERVER_IP>:3000/download/file.txt
-```
-
-You can also open the download URL directly in your browser.
+<img width="673" height="288" alt="Screenshot 2026-08-02 at 9 49 16 AM" src="https://github.com/user-attachments/assets/11837579-e796-4624-bb73-4517a5299475" />
 
 ## ⚙️ Configuration
 
