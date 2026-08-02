@@ -9,6 +9,7 @@
     --text-secondary: #86868b;
     --accent: #0071e3;
     --row-hover: #f5f5f7;
+    --row-active: #ebebed;
     --row-border: #e5e5e7;
     --border: #d2d2d7;
     --radius: 10px;
@@ -20,85 +21,83 @@
     padding: 0;
 }
 
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Helvetica Neue', Arial, sans-serif;
     background: var(--bg);
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
+    min-height: 100dvh;
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Mobile-first: content flows top-down, full width, safe-area aware */
+    padding: 16px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
-/* Upload bar — kept simple, sits above the "window" */
+/* ===== Upload bar ===== */
+/* Mobile: stacked, full-width, larger tap targets */
 #uploadContainer {
     width: 100%;
-    max-width: 480px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 10px;
     margin-bottom: 16px;
 }
 
 #fileInput {
-    flex: 1;
-    font-size: 13px;
+    width: 100%;
+    font-size: 15px;
     color: var(--text-secondary);
-    padding: 8px 10px;
+    padding: 12px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     background: var(--window-bg);
     cursor: pointer;
 }
 
 #fileInput::file-selector-button {
     font-family: inherit;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--text-primary);
     background: #f0f0f2;
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 12px;
+    border-radius: 8px;
+    padding: 8px 14px;
     margin-right: 10px;
     cursor: pointer;
-    transition: background 0.15s ease;
 }
 
-#fileInput::file-selector-button:hover {
-    background: #e5e5e7;
+#fileInput::file-selector-button:active {
+    background: #e0e0e2;
 }
 
 #uploadButton {
     font-family: inherit;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 500;
     color: #fff;
     background: var(--accent);
     border: none;
-    border-radius: 8px;
-    padding: 8px 18px;
+    border-radius: 10px;
+    padding: 13px 18px;
+    width: 100%;
     cursor: pointer;
-    transition: background 0.15s ease;
-    white-space: nowrap;
-}
-
-#uploadButton:hover {
-    background: #0077ed;
+    -webkit-tap-highlight-color: transparent;
 }
 
 #uploadButton:active {
     background: #006edb;
 }
 
-/* ===== Finder-style list window ===== */
+/* ===== Finder-style list ===== */
 #downloadContainer {
     width: 100%;
-    max-width: 480px;
     background: var(--window-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -110,30 +109,29 @@ body {
     display: none;
 }
 
-/* Each row = one file */
+/* Each row — taller padding on mobile for comfortable tapping */
 #downloadContainer > div {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 14px;
+    padding: 12px 14px;
     border-bottom: 1px solid var(--row-border);
-    transition: background 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
 }
 
 #downloadContainer > div:last-child {
     border-bottom: none;
 }
 
-#downloadContainer > div:hover {
-    background: var(--row-hover);
+#downloadContainer > div:active {
+    background: var(--row-active);
 }
 
-/* Little document icon before the filename, Finder-style */
 #downloadContainer > div::before {
     content: "";
     flex-shrink: 0;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     background-color: var(--text-secondary);
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3C/svg%3E");
@@ -143,31 +141,26 @@ body {
     mask-repeat: no-repeat;
 }
 
-/* Filename */
 #downloadContainer span {
     flex: 1;
     min-width: 0;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-/* Download link — quiet, text-style, like Finder's inline actions */
+/* Download action — slightly larger tap target on mobile */
 #downloadContainer a {
     flex-shrink: 0;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--accent);
     text-decoration: none;
-    padding: 3px 8px;
-    border-radius: 5px;
-    transition: background 0.15s ease;
-}
-
-#downloadContainer a:hover {
-    background: rgba(0, 113, 227, 0.1);
+    padding: 6px 12px;
+    border-radius: 6px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 #downloadContainer a:active {
@@ -178,8 +171,72 @@ body {
     content: "Download";
 }
 
-@media (max-width: 480px) {
+/* ============================================= */
+/* Tablet and up: constrain width, restore hover, */
+/* go back to horizontal upload bar               */
+/* ============================================= */
+@media (min-width: 600px) {
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+    }
+
     #uploadContainer {
-        flex-wrap: wrap;
+        flex-direction: row;
+        max-width: 480px;
+    }
+
+    #fileInput {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+
+    #fileInput::file-selector-button {
+        font-size: 12px;
+        padding: 5px 12px;
+    }
+
+    #fileInput::file-selector-button:hover {
+        background: #e5e5e7;
+    }
+
+    #uploadButton {
+        font-size: 13px;
+        padding: 8px 18px;
+        width: auto;
+    }
+
+    #uploadButton:hover {
+        background: #0077ed;
+    }
+
+    #downloadContainer {
+        max-width: 480px;
+    }
+
+    #downloadContainer > div {
+        padding: 8px 14px;
+        transition: background 0.1s ease;
+    }
+
+    #downloadContainer > div:hover {
+        background: var(--row-hover);
+    }
+
+    #downloadContainer span {
+        font-size: 13px;
+    }
+
+    #downloadContainer a {
+        font-size: 12px;
+        padding: 3px 8px;
+        transition: background 0.15s ease;
+    }
+
+    #downloadContainer a:hover {
+        background: rgba(0, 113, 227, 0.1);
     }
 }
