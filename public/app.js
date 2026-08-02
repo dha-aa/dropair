@@ -2,30 +2,63 @@ const fileInput = document.getElementById("fileInput");
 const uploadButton = document.getElementById("uploadButton");
 const downloadContainer = document.getElementById("downloadContainer");
 
+let lastFilesSnapshot = "";
 
 async function getDownlaods() {
-    downloadContainer.innerHTML = "";
     const response = await fetch("/api/files");
     const files = await response.json();
 
+    const snapshot = JSON.stringify(files);
+    if (snapshot === lastFilesSnapshot) return;
+    lastFilesSnapshot = snapshot;
+
+    downloadContainer.innerHTML = "";
+
     files.forEach((file) => {
-        if(file.type === "file") {
+        if (file.type === "file") {
             const item = document.createElement("div");
             item.innerHTML = `
             <span>${file.filename}</span>
             <a href="/download/${encodeURIComponent(file.filename)}">
                     Download
-                </a>`
-            
+                </a>`;
+
             downloadContainer.appendChild(item);
         }
-    })
-    
+    });
 }
 getDownlaods();
 
-// Uploads one file via XHR so we get real upload-progress events,
-// and reports progress back as a fraction (0–1) of that single file.
+// ===== Instant updates via SSE =====
+let eventSource;
+
+function connectStream() {
+    eventSource = new EventSource("/api/files/stream");
+
+    eventSource.onmessage = () => {
+        getDownlaods(); // a file changed somewhere — refresh instantly
+    };
+
+    eventSource.onerror = () => {
+        // Connection dropped (server restart, network blip, phone backgrounded, etc.)
+        // Browser auto-retries by default, but we force a clean reconnect + catch-up fetch
+        eventSource.close();
+        setTimeout(() => {
+            getDownlaods();
+            connectStream();
+        }, 2000);
+    };
+}
+connectStream();
+
+// Also refresh immediately when the tab regains focus/visibility,
+// in case the connection silently dropped while backgrounded
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+        getDownlaods();
+    }
+});
+
 function uploadOneFile(file, onProgress) {
     return new Promise((resolve, reject) => {
         const formData = new FormData();
@@ -69,7 +102,6 @@ async function fileUpload() {
         const file = files[i];
         try {
             await uploadOneFile(file, (fraction) => {
-                // Overall progress = completed files + current file's fraction, out of total
                 const overall = ((i + fraction) / total) * 100;
                 uploadButton.style.setProperty("--progress", `${overall}%`);
             });
@@ -88,7 +120,9 @@ async function fileUpload() {
 
     fileInput.value = "";
     uploadButton.disabled = false;
-    getDownlaods();
+    // no need to call getDownlaods() here anymore —
+    // notifyClients() on the server will push it to us instantly,
+    // including this same tab
 }
 
 uploadButton.addEventListener("click", fileUpload);

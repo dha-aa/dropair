@@ -19,9 +19,11 @@ export default function startServer() {
     app.use(express.static(path.join(__dirname, "public")));
 
     app.post("/upload",upload,(req,res) => {
+        notifyClients();
         res.json({
             msg:"uploaded succesfully"
         })
+        
     })
 
     app.get("/api/files",(req,res) => {
@@ -39,6 +41,32 @@ export default function startServer() {
             console.log(err)
         })
     })
+
+        // Keep track of connected clients waiting for updates
+    const sseClients = [];
+
+    // SSE endpoint — the browser connects here and keeps it open
+    app.get("/api/files/stream", (req, res) => {
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+        res.flushHeaders();
+
+        sseClients.push(res);
+
+        // Clean up when the tab closes / connection drops
+        req.on("close", () => {
+            const index = sseClients.indexOf(res);
+            if (index !== -1) sseClients.splice(index, 1);
+        });
+    });
+
+    // Call this ONE line anywhere a file finishes uploading (in your /upload route)
+    function notifyClients() {
+        sseClients.forEach((client) => {
+            client.write(`data: update\n\n`);
+        });
+    }
 
     // local url
     const url = `http://${getLocalIP()}:${PORT}`
