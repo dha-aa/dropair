@@ -6,6 +6,10 @@ export default function  getFiles() {
     const files = fs.readdirSync(cwd);
     const listOfThing = []
     for (const file of files) {
+
+        if (file.startsWith(".")) {
+            continue
+        }
         const fullpath = `${cwd}/${file}`;
         const statas = fs.statSync(fullpath);
 
