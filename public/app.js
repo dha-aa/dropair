@@ -8,20 +8,22 @@ async function fileUpload() {
     for (const file of files) {
         const formData = new FormData();
         formData.append("file",file);
-
         try {
             const respone = await fetch("/upload",{
-                method:"POSt",
+                method:"POST",
                 body:formData,
                 
             })
             if (respone.ok) {
                 console.log("file uploaded!")
+                
             }
         } catch(error) {
             console.log(error)
         }
-    }
+        
+    };
+    fileInput.value = "";
     
 }
 

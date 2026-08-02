@@ -18,7 +18,9 @@ const __dirname = path.dirname(__filename)
 app.use(express.static(path.join(__dirname, "public")));
 
 app.post("/upload",upload,(req,res) => {
-    console.log("uploaded!")
+    res.json({
+        msg:"uploaded succesfully"
+    })
 })
 
 app.get("/api/files",(req,res) => {
