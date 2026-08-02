@@ -4,15 +4,22 @@
 
 :root {
     --bg: #f5f5f7;
+    --bg-glow: #ffffff;
     --window-bg: #ffffff;
     --text-primary: #1d1d1f;
     --text-secondary: #86868b;
     --accent: #0071e3;
+    --accent-hover: #0077ed;
+    --accent-active: #006edb;
+    --success: #30c48d;
     --row-hover: #f5f5f7;
     --row-active: #ebebed;
-    --row-border: #e5e5e7;
+    --row-border: #ececee;
     --border: #d2d2d7;
-    --radius: 10px;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -27,7 +34,9 @@ html {
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Helvetica Neue', Arial, sans-serif;
-    background: var(--bg);
+    background:
+        radial-gradient(900px 500px at 20% -10%, var(--bg-glow) 0%, transparent 60%),
+        var(--bg);
     min-height: 100vh;
     min-height: 100dvh;
     color: var(--text-primary);
@@ -47,6 +56,12 @@ body {
     flex-direction: column;
     gap: 10px;
     margin-bottom: 16px;
+    animation: rise 0.5s var(--ease-out) both;
+}
+
+@keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 #fileInput {
@@ -55,9 +70,16 @@ body {
     color: var(--text-secondary);
     padding: 12px;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--window-bg);
     cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#fileInput:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.14);
 }
 
 #fileInput::file-selector-button {
@@ -67,14 +89,16 @@ body {
     color: var(--text-primary);
     background: #f0f0f2;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 8px 14px;
     margin-right: 10px;
     cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s var(--ease);
 }
 
 #fileInput::file-selector-button:active {
     background: #e0e0e2;
+    transform: scale(0.97);
 }
 
 #uploadButton {
@@ -84,15 +108,55 @@ body {
     color: #fff;
     background: var(--accent);
     border: none;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     padding: 13px 18px;
     width: 100%;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s ease, transform 0.15s var(--ease), box-shadow 0.2s ease;
+}
+
+#uploadButton:hover {
+    box-shadow: 0 4px 14px rgba(0, 113, 227, 0.28);
 }
 
 #uploadButton:active {
-    background: #006edb;
+    background: var(--accent-active);
+    transform: scale(0.98);
+    box-shadow: none;
+}
+
+#uploadButton:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.22);
+}
+
+/* Progress fill + completion state */
+#uploadButton {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+#uploadButton::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: var(--progress, 0%);
+    background: rgba(255, 255, 255, 0.28);
+    transition: width 0.3s var(--ease-out);
+    z-index: -1;
+}
+
+#uploadButton.is-complete {
+    background: var(--success);
+    animation: pulse 0.4s var(--ease-out);
+}
+
+@keyframes pulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.015); }
+    100% { transform: scale(1); }
 }
 
 /* ===== Finder-style list ===== */
@@ -102,7 +166,7 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 8px 24px -12px rgba(20, 20, 30, 0.12);
 }
 
 #downloadContainer:empty {
@@ -117,6 +181,13 @@ body {
     padding: 12px 14px;
     border-bottom: 1px solid var(--row-border);
     -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease;
+    animation: rowIn 0.4s var(--ease-out) both;
+}
+
+@keyframes rowIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 #downloadContainer > div:last-child {
@@ -133,12 +204,17 @@ body {
     width: 20px;
     height: 20px;
     background-color: var(--text-secondary);
+    transition: background-color 0.2s ease;
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3C/svg%3E");
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
+}
+
+#downloadContainer > div:hover::before {
+    background-color: var(--accent);
 }
 
 #downloadContainer span {
@@ -161,10 +237,12 @@ body {
     padding: 6px 12px;
     border-radius: 6px;
     -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, transform 0.15s var(--ease);
 }
 
 #downloadContainer a:active {
     background: rgba(0, 113, 227, 0.18);
+    transform: scale(0.95);
 }
 
 #downloadContainer a:empty::after {
@@ -210,7 +288,7 @@ body {
     }
 
     #uploadButton:hover {
-        background: #0077ed;
+        background: var(--accent-hover);
     }
 
     #downloadContainer {
@@ -219,7 +297,6 @@ body {
 
     #downloadContainer > div {
         padding: 8px 14px;
-        transition: background 0.1s ease;
     }
 
     #downloadContainer > div:hover {
@@ -233,7 +310,6 @@ body {
     #downloadContainer a {
         font-size: 12px;
         padding: 3px 8px;
-        transition: background 0.15s ease;
     }
 
     #downloadContainer a:hover {
@@ -241,22 +317,9 @@ body {
     }
 }
 
-#uploadButton {
-    position: relative;
-    overflow: hidden;
-    isolation: isolate;
-}
-
-#uploadButton::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    width: var(--progress, 0%);
-    background: rgba(255, 255, 255, 0.28);
-    transition: width 0.2s ease;
-    z-index: -1;
-}
-
-#uploadButton.is-complete {
-    background: #1db954;
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.001ms !important;
+        transition-duration: 0.001ms !important;
+    }
 }
