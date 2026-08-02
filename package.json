@@ -1,16 +1,11 @@
 {
   "name": "dropair-core",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "bin": {
     "dropair": "./cli.js"
   },
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
