@@ -2,6 +2,27 @@ const fileInput = document.getElementById("fileInput");
 const uploadButton = document.getElementById("uploadButton");
 const downloadContainer = document.getElementById("downloadContainer");
 
+
+async function getDownlaods() {
+    const response = await fetch("/api/files");
+    const files = await response.json();
+
+    files.forEach((file) => {
+        if(file.type === "file") {
+            const item = document.createElement("div");
+            item.innerHTML = `
+            <span>${file.filename}</span>
+            <a href="/download/${encodeURIComponent(file.filename)}">
+                    Download
+                </a>`
+            
+            downloadContainer.appendChild(item);
+        }
+    })
+    
+}
+getDownlaods();
+
 async function fileUpload() {
     const files = fileInput.files;
     uploadButton.disabled = true;
@@ -26,28 +47,9 @@ async function fileUpload() {
     };
     fileInput.value = "";
     uploadButton.disabled = false;
+    downloadContainer.innerHTML = "";
+    getDownlaods();
     
 }
 
 uploadButton.addEventListener("click",fileUpload);
-
-async function getDownlaods() {
-    const response = await fetch("/api/files");
-    const files = await response.json();
-
-    files.forEach((file) => {
-        if(file.type === "file") {
-            const item = document.createElement("div");
-            item.innerHTML = `
-            <span>${file.filename}</span>
-            <a href="/download/${encodeURIComponent(file.filename)}">
-                    Download
-                </a>`
-            
-            downloadContainer.appendChild(item);
-        }
-    })
-    
-}
-
-getDownlaods();
