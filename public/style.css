@@ -240,3 +240,23 @@ body {
         background: rgba(0, 113, 227, 0.1);
     }
 }
+
+#uploadButton {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+#uploadButton::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: var(--progress, 0%);
+    background: rgba(255, 255, 255, 0.28);
+    transition: width 0.2s ease;
+    z-index: -1;
+}
+
+#uploadButton.is-complete {
+    background: #1db954;
+}
