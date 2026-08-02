@@ -4,6 +4,7 @@ const downloadContainer = document.getElementById("downloadContainer");
 
 
 async function getDownlaods() {
+    downloadContainer.innerHTML = "";
     const response = await fetch("/api/files");
     const files = await response.json();
 
@@ -47,7 +48,6 @@ async function fileUpload() {
     };
     fileInput.value = "";
     uploadButton.disabled = false;
-    downloadContainer.innerHTML = "";
     getDownlaods();
     
 }
