@@ -4,6 +4,7 @@ const downloadContainer = document.getElementById("downloadContainer");
 
 async function fileUpload() {
     const files = fileInput.files;
+    uploadButton.disabled = true;
 
     for (const file of files) {
         const formData = new FormData();
@@ -24,6 +25,7 @@ async function fileUpload() {
         
     };
     fileInput.value = "";
+    uploadButton.disabled = false;
     
 }
 
