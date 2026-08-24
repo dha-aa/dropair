@@ -218,15 +218,9 @@ fi
 install_dependencies() {
 cd "$INSTALL_DIR"
 
-info "Installing dependencies..."
+info "Installing Dropair dependencies..."
 
-if [[ -f "package-lock.json" ]]; then
-info "package-lock.json found. Running npm ci..."
-npm ci
-else
-warning "No package-lock.json found. Running npm install..."
 npm install
-fi
 
 success "Dependencies installed."
 }
@@ -260,6 +254,7 @@ check_dependencies
 
 echo
 info "Installing Dropair"
+echo
 echo "Installation directory:"
 echo "  $INSTALL_DIR"
 echo
@@ -280,6 +275,12 @@ echo "  $INSTALL_DIR"
 echo
 echo "You can now run:"
 echo "  dropair"
+echo
+echo "For help:"
+echo "  dropair --help"
+echo
+echo "To uninstall:"
+echo "  dropair --uninstall"
 echo
 }
 
