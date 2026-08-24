@@ -22,10 +22,11 @@ if (command === "--update") {
   console.log("Updating DropAir...");
 
   execSync(
-    "curl -fsSL https://raw.githubusercontent.com/dha-aa/dropair/main/install.sh | bash",
-    { stdio: "inherit" }
+    'cd "$HOME/.dropair" && git pull && npm install',
+    { stdio: "inherit", shell: "/bin/bash" }
   );
 
+  console.log("DropAir updated successfully.");
   process.exit(0);
 }
 
