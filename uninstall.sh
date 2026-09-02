@@ -10,4 +10,4 @@ rm -rf "$HOME/.dropair"
 
 rm -f "/usr/local/bin/dropair"
 
-echo "DropAir has been uninstalled."
+echo "DropAir has been uninstalled.."
