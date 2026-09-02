@@ -38,6 +38,7 @@ export default function startServer() {
         const filepath = path.join(folderpath,filename);
 
         res.download(filepath,filename ,(err) => {
+            console.log(`Downloading :${filename}`)
             if (err) {
                 console.log("Download error:", err);
             }
