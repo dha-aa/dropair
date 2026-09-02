@@ -103,6 +103,7 @@ async function fileUpload() {
         try {
             await uploadOneFile(file, (fraction) => {
                 const overall = ((i + fraction) / total) * 100;
+                uploadButton.innerText = `${Math.trunc(overall)}%`
                 uploadButton.style.setProperty("--progress", `${overall}%`);
             });
         } catch (error) {
@@ -116,10 +117,12 @@ async function fileUpload() {
     setTimeout(() => {
         uploadButton.classList.remove("is-complete");
         uploadButton.style.setProperty("--progress", "0%");
+        uploadButton.innerText = "Upload"
     }, 900);
 
     fileInput.value = "";
     uploadButton.disabled = false;
+    
     // no need to call getDownlaods() here anymore —
     // notifyClients() on the server will push it to us instantly,
     // including this same tab
