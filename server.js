@@ -23,7 +23,7 @@ export default function startServer() {
         res.json({
             msg:"uploaded succesfully"
         })
-        
+                
     })
 
     app.get("/api/files",(req,res) => {
@@ -37,12 +37,18 @@ export default function startServer() {
         const filename = req.params.filename;
         const filepath = path.join(folderpath,filename);
 
-        res.download(filepath,filename ,(err) => {
-            console.log(`Downloading :${filename}`)
+        console.log(`Downloading: ${filename}`);
+
+        res.download(filepath, filename, (err) => {
             if (err) {
                 console.log("Download error:", err);
+                if (!res.headersSent) {
+                    res.status(404).send("File not found or download error");
+                }
+            } else {
+                console.log(`Download success: ${filename}`);
             }
-        })
+        });
     })
 
         // Keep track of connected clients waiting for updates
