@@ -1,4 +1,4 @@
+// current dir where you run this code
 export default function getCwd() {
-    const currentPath = process.cwd();
-    return currentPath;
+    return process.cwd();
 }
