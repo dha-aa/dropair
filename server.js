@@ -38,7 +38,9 @@ export default function startServer() {
         const filepath = path.join(folderpath,filename);
 
         res.download(filepath,filename ,(err) => {
-            console.log(err)
+            if (err) {
+                console.log("Download error:", err);
+            }
         })
     })
 
@@ -64,7 +66,13 @@ export default function startServer() {
     // Call this ONE line anywhere a file finishes uploading (in your /upload route)
     function notifyClients() {
         sseClients.forEach((client) => {
-            client.write(`data: update\n\n`);
+            try {
+                client.write(`data: update\n\n`);
+            } catch (err) {
+                // Client disconnected, remove from array
+                const index = sseClients.indexOf(client);
+                if (index !== -1) sseClients.splice(index, 1);
+            }
         });
     }
 
