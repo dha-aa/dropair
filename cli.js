@@ -3,7 +3,7 @@
 import { execSync } from "node:child_process";
 import startServer from "./server.js";
 
-const VERSION = "1.0.0";
+const VERSION = "2.0.0";
 const command = process.argv[2];
 
 function runShell(command) {
