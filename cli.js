@@ -8,14 +8,24 @@ const command = process.argv[2];
 const VERSION = "1.0.0";
 
 if (command === "--uninstall") {
-  console.log("Uninstalling DropAir...");
+    execSync(`
+        set -e
 
-  execSync(
-    "curl -fsSL https://raw.githubusercontent.com/dha-aa/dropair/main/uninstall.sh | bash",
-    { stdio: "inherit" }
-  );
+        echo "Uninstalling DropAir..."
 
-  process.exit(0);
+        npm unlink -g dropair 2>/dev/null || true
+
+        rm -rf "$HOME/.dropair"
+
+        rm -f "/usr/local/bin/dropair"
+
+        echo "DropAir has been uninstalled."
+    `, {
+        stdio: "inherit",
+        shell: "/bin/bash"
+    });
+
+    process.exit(0);
 }
 
 if (command === "--update") {
