@@ -1,52 +1,52 @@
 #!/usr/bin/env node
 
-import { execSync } from "child_process";
+import { execSync } from "node:child_process";
 import startServer from "./server.js";
 
+const VERSION = "1.0.0";
 const command = process.argv[2];
 
-const VERSION = "1.0.0";
+function runShell(command) {
+    execSync(command, {
+        stdio: "inherit",
+        shell: "/bin/bash"
+    });
+}
 
-if (command === "--uninstall") {
-    execSync(`
+function uninstall() {
+    runShell(`
         set -e
 
         echo "Uninstalling DropAir..."
 
         npm unlink -g dropair 2>/dev/null || true
-
         rm -rf "$HOME/.dropair"
-
         rm -f "/usr/local/bin/dropair"
 
         echo "DropAir has been uninstalled."
-    `, {
-        stdio: "inherit",
-        shell: "/bin/bash"
-    });
-
-    process.exit(0);
+    `);
 }
 
-if (command === "--update") {
-  console.log("Updating DropAir...");
+function update() {
+    console.log("Updating DropAir...");
 
-  execSync(
-    'cd "$HOME/.dropair" && git pull && npm install',
-    { stdio: "inherit", shell: "/bin/bash" }
-  );
+    runShell(`
+        set -e
 
-  console.log("DropAir updated successfully.");
-  process.exit(0);
+        cd "$HOME/.dropair"
+        git pull
+        npm install
+    `);
+
+    console.log("DropAir updated successfully.");
 }
 
-if (command === "--version" || command === "-v") {
-  console.log(`DropAir v${VERSION}`);
-  process.exit(0);
+function showVersion() {
+    console.log(`DropAir v${VERSION}`);
 }
 
-if (command === "--help" || command === "-h") {
-  console.log(`
+function showHelp() {
+    console.log(`
 DropAir CLI
 
 Usage:
@@ -61,15 +61,39 @@ Options:
   -v, --version           Show version
   --update                Update DropAir
   --uninstall             Uninstall DropAir
-  `);
-
-  process.exit(0);
+`);
 }
 
-if (command?.startsWith("-")) {
-  console.error(`Unknown option: ${command}`);
-  console.error("Run 'dropair --help' for available options.");
-  process.exit(1);
+function handleCommand() {
+    switch (command) {
+        case "--uninstall":
+            uninstall();
+            return;
+
+        case "--update":
+            update();
+            return;
+
+        case "--version":
+        case "-v":
+            showVersion();
+            return;
+
+        case "--help":
+        case "-h":
+            showHelp();
+            return;
+
+        default:
+            if (command?.startsWith("-")) {
+                console.error(`Unknown option: ${command}`);
+                console.error("Run 'dropair --help' for available options.");
+                process.exitCode = 1;
+                return;
+            }
+
+            startServer();
+    }
 }
 
-startServer();
+handleCommand();
