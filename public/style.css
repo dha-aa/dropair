@@ -1,0 +1,156 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+    padding: 30px 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px;
+    margin: auto;
+}
+
+.upload-box {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+}
+
+input[type="file"] {
+    width: 100%;
+    min-width: 0;
+}
+
+button,
+.download {
+    border: none;
+    background: #222;
+    color: white;
+    padding: 11px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+button:hover,
+.download:hover {
+    background: #444;
+}
+
+#listContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#listContainer > div {
+    background: white;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+#listContainer p {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+
+    body {
+        padding: 12px;
+    }
+
+    .upload-box {
+        padding: 15px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    input[type="file"] {
+        font-size: 14px;
+    }
+
+    .upload-box button {
+        width: 100%;
+        padding: 12px;
+    }
+
+    #listContainer > div {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    #listContainer p {
+        font-size: 14px;
+    }
+
+    .download {
+        padding: 10px 14px;
+    }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+
+    body {
+        padding: 8px;
+    }
+
+    .upload-box {
+        padding: 12px;
+    }
+
+    #listContainer > div {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .download {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+.file-input {
+    display: none;
+}
+
+.select-files {
+    display: block; 
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f8f8f8;
+    color: #222;
+    text-align: center;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.select-files:hover {
+    background: #eee;
+}
