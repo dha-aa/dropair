@@ -44,7 +44,12 @@ Usage:
 `)
 }
 
+
+
 switch(commnd){
+    case undefined:
+        startServer();
+        break;
     case "--uninstall":
         unistall();
         break;
@@ -55,7 +60,7 @@ switch(commnd){
         help();
         break;
     default:
-        startServer();
+        console.log('Run "dropair --help" for available options.');
         break;
 }
 
