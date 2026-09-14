@@ -3,52 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f6f7fb">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <title>Dropair</title>
+    <title>Dropair · Your media gallery</title>
 </head>
 <body>
-<div class="container">
-    <div class="upload-box">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="container">
+        <header class="topbar">
+            <a class="brand" href="/" aria-label="Dropair home">
+                <span class="brand-mark"><span></span><span></span><span></span></span>
+                <span>dropair</span>
+            </a>
+            <div class="topbar-actions">
+                <span class="status-pill"><i></i> Online</span>
+                <button class="avatar" id="optionsButton" type="button" aria-label="Gallery options">DA</button>
+                <div class="options-menu" id="optionsMenu" role="menu" aria-hidden="true">
+                    <p>View and sort</p>
+                    <button type="button" data-sort="modified">Newest first</button>
+                    <button type="button" data-sort="size">Largest first</button>
+                    <button type="button" data-sort="name">Name A–Z</button>
+                    <hr>
+                    <button type="button" data-layout="grid">Square grid</button>
+                    <button type="button" data-layout="compact">Compact grid</button>
+                </div>
+            </div>
+        </header>
 
-    <input
-        type="file"
-        id="fileInput"
-        class="file-input"
-        multiple
-    >
+        <section class="hero" aria-labelledby="pageTitle">
+            <div class="hero-copy">
+                <p class="eyebrow">YOUR PERSONAL CLOUD GALLERY</p>
+                <h1 id="pageTitle">Everything you love,<br><em>in one place.</em></h1>
+                <p class="hero-subtitle">Upload, browse and share your favourite moments with a gallery that feels effortless.</p>
+            </div>
+            <div class="hero-orbit" aria-hidden="true">
+                <div class="orbit-card orbit-card-back">✦</div>
+                <div class="orbit-card orbit-card-front">⌁</div>
+                <div class="orbit-glow"></div>
+            </div>
+        </section>
 
-    <label for="fileInput" class="select-files">
-        <span id="fileName">Select files</span>
-    </label>
+        <section class="upload-box" aria-label="Upload files">
+            <div class="upload-icon" aria-hidden="true">↑</div>
+            <div class="upload-copy">
+                <strong>Drop files here</strong>
+                <span>Images, videos and documents up to 2 GB</span>
+            </div>
+            <input type="file" id="fileInput" class="file-input" multiple>
+            <label for="fileInput" class="select-files"><span id="fileName">Choose files</span><span class="label-arrow">↗</span></label>
+            <button id="uploadBtn" type="button"><span>Upload</span><b>↑</b></button>
+        </section>
 
-    <button id="uploadBtn">
-        Upload
-    </button>
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">YOUR COLLECTION</p>
+                <h2>Recent uploads</h2>
+            </div>
+            <div class="view-switcher" aria-label="Gallery view"><button class="view-button active" type="button" aria-label="Grid view">⠿</button><button class="view-button" type="button" aria-label="List view">☰</button></div>
+        </div>
+        <p class="gallery-hint"><span class="hint-dot"></span> Click to preview <span>·</span> Double-click to download <span>·</span> Tap the circle to select</p>
+        <div id="galleryContainer" class="gallery-grid"></div>
+    </main>
 
-</div>
-    <p class="gallery-hint">Click to view &middot; Double-click to download &middot; Tap the circle to multi-select</p>
-    <div id="galleryContainer" class="gallery-grid"></div>
-</div>
-
-<div id="lightbox" class="lightbox hidden">
-    <button id="lightboxClose" class="lightbox-close" aria-label="Close">&times;</button>
-    <div class="lightbox-content">
-        <div id="lightboxMedia"></div>
-        <div class="lightbox-footer">
-            <span id="lightboxName"></span>
-            <a id="lightboxDownload" class="download" download>Download</a>
+    <div id="lightbox" class="lightbox hidden">
+        <button id="lightboxClose" class="lightbox-close" aria-label="Close">&times;</button>
+        <div class="lightbox-content">
+            <div id="lightboxMedia"></div>
+            <div class="lightbox-footer"><span id="lightboxName"></span><a id="lightboxDownload" class="download" download>Download <span>↗</span></a></div>
         </div>
     </div>
-</div>
-
-<div id="selectionBar" class="selection-bar hidden">
-    <span id="selectionCount">0 selected</span>
-    <div class="selection-actions">
-        <button id="downloadSelectedBtn" class="download">Download</button>
-        <button id="clearSelectionBtn" class="clear-btn">Cancel</button>
-    </div>
-</div>
-
+    <div id="selectionBar" class="selection-bar hidden"><span id="selectionCount">0 selected</span><div class="selection-actions"><button id="downloadSelectedBtn" class="download" type="button">Download selected</button><button id="clearSelectionBtn" class="clear-btn" type="button">Cancel</button></div></div>
+    <nav class="bottom-dock" aria-label="Gallery controls">
+        <span class="dock-status" aria-live="polite"></span>
+        <button type="button" data-dock-action="home" aria-label="Home">⌂</button>
+        <button type="button" data-dock-action="gallery" aria-label="Gallery">▦</button>
+        <button type="button" data-dock-action="upload" aria-label="Upload">＋</button>
+        <button type="button" class="dock-cancel" data-dock-action="cancel" aria-label="Cancel">×</button>
+        <button type="button" class="dock-download" data-dock-action="download" aria-label="Download selected">↓</button>
+    </nav>
     <script src="app.js"></script>
 </body>
 </html>
