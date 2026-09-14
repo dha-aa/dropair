@@ -23,6 +23,7 @@ export default function startServer() {
 
     app.get("/download/:file",(req,res)=>{
         const file = req.params.file
+        console.log(`Downloding: ${file}`)
         res.download(`${getCwd()}/${file}`)
     })
     app.get("/api/files",async(req,res) => {

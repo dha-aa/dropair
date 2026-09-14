@@ -12,7 +12,10 @@ async function uploadFiles() {
         method:"POST",
         body:fromData
     })
-    console.log(respose)
+    if(respose.ok){
+        fileInput.value = ""
+        getFiles()
+    }
     
 }
 
@@ -28,7 +31,6 @@ async function getFiles() {
 
     for (const file of files) {
         const div = document.createElement("div");
-
         const p = document.createElement("p");
         p.textContent = file.filename;
 
