@@ -6,7 +6,7 @@ export default async function readDir() {
     const data = []
     
     for(const file of files){
-        if(!file.isDirectory()){
+        if(!file.isDirectory()&&!file.name.startsWith(".")){
             data.push({
             filename:file.name,
         })
