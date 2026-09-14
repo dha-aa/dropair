@@ -26,10 +26,16 @@ function run(commnd){
 
 
 function unistall() {
+    console.log("Uninstalling Dropair...");
+    console.log(`Removing Dropair from: ${deaultPath}`);
     run(`cd ${deaultPath} && npm unlink -g && rm -rf ${deaultPath}`)
 }
 
 function update() {
+    console.log("Updating Dropair...");
+    console.log(`Repository: ${deaultPath}`);
+    console.log("Pulling the latest changes...");
+
     run(`cd ${deaultPath} && git pull && npm link`)
 }
 
