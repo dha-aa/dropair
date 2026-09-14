@@ -45,7 +45,7 @@ Usage:
 }
 
 switch(commnd){
-    case "--unistall":
+    case "--uninstall":
         unistall();
         break;
     case "--update":

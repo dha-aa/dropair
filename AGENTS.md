@@ -24,6 +24,8 @@ dropair/
 │   ├── index.html   # UI HTML
 │   ├── style.css    # UI Styling
 │   └── app.js       # Frontend JavaScript
+├── cli.js           # CLI interface for dropair
+├── install.sh       # Installation script
 ├── server.js        # DO NOT MODIFY
 ├── utils/           # DO NOT MODIFY
 ├── upload/          # DO NOT MODIFY
@@ -33,11 +35,30 @@ dropair/
 ## Functionality
 This is a file sharing application with:
 - File upload functionality
-- File download functionality  
+- File download functionality
 - QR code generation for sharing
 - File listing API
+- CLI interface for global access (cli.js)
 
 All backend functions are working correctly and should not be touched. Only UI improvements in the `/public` folder are permitted.
+
+## CLI Installation
+Use `install.sh` to install DropAir globally:
+```bash
+./install.sh
+```
+
+This will:
+- Clone the repository to `~/.dropair`
+- Run `npm install` to install dependencies
+- Run `npm link` to create a global symlink
+
+## CLI Usage
+After installation, the following commands are available:
+- `dropair` - Start Dropair
+- `dropair --help` - Show help
+- `dropair --uninstall` - Uninstall dropair
+- `dropair --update` - Update dropair
 
 ## Verification
 When making changes:
