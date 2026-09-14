@@ -90,6 +90,7 @@ function renderFiles(files) {
         const btn = document.createElement("a");
         btn.textContent = "Download";
         btn.href = `/download/${encodeURIComponent(file.filename)}`;
+        btn.className = "download";
 
         div.append(p, btn);
         listContainer.appendChild(div);
