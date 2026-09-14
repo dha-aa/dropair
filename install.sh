@@ -3,9 +3,9 @@
 # DropAir Installation Script
 # Clones the repository to ~/.dropair and sets it up with npm install and npm link
 
-set -e
+set -euo pipefail
 
-REPO_URL="git@github.com:dha-aa/dropair.git"
+REPO_URL="https://github.com/dha-aa/dropair.git"
 INSTALL_DIR="$HOME/.dropair"
 
 echo "Installing DropAir to $INSTALL_DIR..."
