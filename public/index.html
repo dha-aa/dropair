@@ -26,9 +26,29 @@
     </button>
 
 </div>
-
-    <div id="listContainer"></div>
+    <p class="gallery-hint">Click to view &middot; Double-click to download &middot; Tap the circle to multi-select</p>
+    <div id="galleryContainer" class="gallery-grid"></div>
 </div>
+
+<div id="lightbox" class="lightbox hidden">
+    <button id="lightboxClose" class="lightbox-close" aria-label="Close">&times;</button>
+    <div class="lightbox-content">
+        <div id="lightboxMedia"></div>
+        <div class="lightbox-footer">
+            <span id="lightboxName"></span>
+            <a id="lightboxDownload" class="download" download>Download</a>
+        </div>
+    </div>
+</div>
+
+<div id="selectionBar" class="selection-bar hidden">
+    <span id="selectionCount">0 selected</span>
+    <div class="selection-actions">
+        <button id="downloadSelectedBtn" class="download">Download</button>
+        <button id="clearSelectionBtn" class="clear-btn">Cancel</button>
+    </div>
+</div>
+
     <script src="app.js"></script>
 </body>
 </html>
