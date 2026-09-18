@@ -72,10 +72,10 @@ export default function startServer() {
     })
     
     app.listen(PORT,() => {
-        genQr(`http://${getIp()}:${PORT}`)
-        console.log(`Server runing on: http://${getIp()}:${PORT}`)
+        // genQr(`http://${getIp()}:${PORT}`)
+        // console.log(`Server runing on: http://${getIp()}:${PORT}`)
     })
-    
+    return ` http://${getIp()}:${PORT}`
     
 }
 

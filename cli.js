@@ -3,6 +3,7 @@ import path from "path";
 import os from "os"
 import startServer from "./server.js";
 import {exec} from "child_process"
+import genQr from "./utils/qr.js";
 
 const commnd = process.argv[2]
 const deaultPath = path.join(os.homedir(),".dropair")
@@ -39,6 +40,11 @@ function update() {
     run(`cd ${deaultPath} && git pull && npm link`)
 }
 
+function url() {
+    console.log(startServer())
+
+}
+
 function help() {
    console.log(`
 Usage:
@@ -61,6 +67,9 @@ switch(commnd){
         break;
     case "--update":
         update();
+        break;
+    case "--url":
+        url();
         break;
     case "--help":
         help();
