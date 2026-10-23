@@ -1,7 +1,5 @@
-const uploadBtn = document.getElementById("uploadBtn");
 const fileInput = document.getElementById("fileInput");
 const galleryContainer = document.getElementById("galleryContainer");
-const fileName = document.getElementById("fileName");
 
 const lightbox = document.getElementById("lightbox");
 const lightboxMedia = document.getElementById("lightboxMedia");
@@ -9,36 +7,21 @@ const lightboxName = document.getElementById("lightboxName");
 const lightboxDownload = document.getElementById("lightboxDownload");
 const lightboxClose = document.getElementById("lightboxClose");
 
-const selectionBar = document.getElementById("selectionBar");
-const selectionCount = document.getElementById("selectionCount");
-const downloadSelectedBtn = document.getElementById("downloadSelectedBtn");
-const clearSelectionBtn = document.getElementById("clearSelectionBtn");
+const dock = document.getElementById("dock");
+const dockStatus = dock.querySelector(".dock-status");
 
-let eventSource = null;
+const optionsButton = document.getElementById("optionsButton");
+const optionsMenu = document.getElementById("optionsMenu");
+
+const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "avif"]);
+const VIDEO_EXTS = new Set(["mp4", "webm", "ogg", "ogv", "mov", "mkv", "m4v", "avi"]);
+
+const LONG_PRESS_MS = 500;
+const DOUBLE_TAP_MS = 430;
 
 const selectedFiles = new Set();
-
-const IMAGE_EXTS = [
-    "jpg",
-    "jpeg",
-    "png",
-    "gif",
-    "webp",
-    "bmp",
-    "svg",
-    "avif"
-];
-
-const VIDEO_EXTS = [
-    "mp4",
-    "webm",
-    "ogg",
-    "ogv",
-    "mov",
-    "mkv",
-    "m4v",
-    "avi"
-];
+let activeSort = "modified";
+let eventSource = null;
 
 
 // --------------------------------------------------
@@ -46,40 +29,170 @@ const VIDEO_EXTS = [
 // --------------------------------------------------
 
 function getExt(filename) {
-    const parts = filename.split(".");
-
-    return parts.length > 1
-        ? parts.pop().toLowerCase()
-        : "";
+    const dot = filename.lastIndexOf(".");
+    return dot > 0 ? filename.slice(dot + 1).toLowerCase() : "";
 }
-
 
 function getFileType(filename) {
     const ext = getExt(filename);
-
-    if (IMAGE_EXTS.includes(ext)) {
-        return "image";
-    }
-
-    if (VIDEO_EXTS.includes(ext)) {
-        return "video";
-    }
-
+    if (IMAGE_EXTS.has(ext)) return "image";
+    if (VIDEO_EXTS.has(ext)) return "video";
     return "file";
 }
-
 
 function fileUrl(filename) {
     return `/download/${encodeURIComponent(filename)}`;
 }
 
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
 function escapeHtml(str) {
-    const div = document.createElement("div");
+    return str.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+}
 
-    div.textContent = str;
+function sortFiles(files) {
+    return files.sort((a, b) => {
+        if (activeSort === "size") return (b.size || 0) - (a.size || 0);
+        if (activeSort === "name") return a.filename.localeCompare(b.filename);
+        return (b.modified || 0) - (a.modified || 0);
+    });
+}
 
-    return div.innerHTML;
+
+// --------------------------------------------------
+// Get files
+// --------------------------------------------------
+//
+// Coalesces bursts of refresh requests (SSE events, tab focus, sort
+// changes) into at most one request in flight plus one queued.
+
+let filesRequest = null;
+let filesRefreshQueued = false;
+
+function getFiles() {
+    if (filesRequest) {
+        filesRefreshQueued = true;
+        return filesRequest;
+    }
+
+    filesRequest = fetch("/api/files")
+        .then((response) => response.json())
+        .then((files) => renderGallery(sortFiles(files)))
+        .catch((err) => console.warn("Could not load files", err))
+        .finally(() => {
+            filesRequest = null;
+            if (filesRefreshQueued) {
+                filesRefreshQueued = false;
+                getFiles();
+            }
+        });
+
+    return filesRequest;
+}
+
+
+// --------------------------------------------------
+// Lazy video thumbnails
+// --------------------------------------------------
+//
+// Videos only start fetching metadata once they scroll near the
+// viewport, so a gallery full of videos doesn't exhaust the browser's
+// per-host connection limit and stall uploads / downloads.
+
+function loadVideo(video) {
+    video.preload = "metadata";
+    video.src = video.dataset.src;
+}
+
+const videoObserver = "IntersectionObserver" in window
+    ? new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            loadVideo(entry.target);
+            videoObserver.unobserve(entry.target);
+        }
+    }, { rootMargin: "200px" })
+    : null;
+
+
+// --------------------------------------------------
+// Render gallery
+// --------------------------------------------------
+
+function createGalleryItem(file) {
+    const type = getFileType(file.filename);
+    const url = fileUrl(file.filename);
+
+    const item = document.createElement("div");
+    item.className = "gallery-item";
+    item.dataset.filename = file.filename;
+    item.dataset.type = type;
+    item.dataset.version = `${file.size}:${file.modified}`;
+    item.title = file.filename;
+
+    let thumbHtml;
+
+    if (type === "image") {
+        thumbHtml = `<img src="${url}" alt="${escapeHtml(file.filename)}" loading="lazy" decoding="async" fetchpriority="low" draggable="false">`;
+    } else if (type === "video") {
+        thumbHtml = `<video data-src="${url}#t=0.1" preload="none" muted playsinline></video><div class="play-badge">&#9654;</div>`;
+    } else {
+        thumbHtml = `<div class="file-icon">${escapeHtml((getExt(file.filename) || "file").slice(0, 4).toUpperCase())}</div>`;
+    }
+
+    item.innerHTML = `<div class="thumb">${thumbHtml}</div><div class="select-toggle" role="checkbox" aria-checked="false"></div>`;
+
+    const video = item.querySelector("video");
+    if (video) videoObserver ? videoObserver.observe(video) : loadVideo(video);
+
+    return item;
+}
+
+// Reuses existing tiles (and their already-loaded thumbnails) instead of
+// rebuilding the whole gallery, so a refresh only fetches new files.
+function renderGallery(files) {
+    const currentNames = new Set(files.map((f) => f.filename));
+
+    // Drop selections for files that no longer exist.
+    for (const name of selectedFiles) {
+        if (!currentNames.has(name)) selectedFiles.delete(name);
+    }
+
+    if (files.length === 0) {
+        galleryContainer.innerHTML = '<p class="empty-msg">No files yet</p>';
+        syncDock();
+        return;
+    }
+
+    galleryContainer.querySelector(".empty-msg")?.remove();
+
+    const existing = new Map();
+    for (const el of galleryContainer.querySelectorAll(".gallery-item")) {
+        existing.set(el.dataset.filename, el);
+    }
+
+    files.forEach((file, i) => {
+        let item = existing.get(file.filename);
+        existing.delete(file.filename);
+
+        // A re-upload with the same name changes size/mtime: rebuild that tile.
+        if (!item || item.dataset.version !== `${file.size}:${file.modified}`) {
+            const fresh = createGalleryItem(file);
+            if (item) item.replaceWith(fresh);
+            item = fresh;
+        }
+
+        setItemSelected(item, selectedFiles.has(file.filename));
+
+        // Only move nodes that are out of order.
+        if (galleryContainer.children[i] !== item) {
+            galleryContainer.insertBefore(item, galleryContainer.children[i] || null);
+        }
+    });
+
+    for (const el of existing.values()) el.remove();
+
+    syncDock();
 }
 
 
@@ -87,281 +200,50 @@ function escapeHtml(str) {
 // Upload
 // --------------------------------------------------
 
-async function uploadFiles() {
-
-    const files = fileInput.files;
-
-    if (!files || files.length === 0) {
-        return;
-    }
-
-    const fromData = new FormData();
-
-    for (const file of files) {
-        fromData.append("file", file);
-    }
-
-
-    uploadBtn.disabled = true;
-
-    uploadBtn.textContent = "0%";
-
-    uploadBtn.style.background = "#222";
-
+function uploadFiles(files) {
+    const formData = new FormData();
+    for (const file of files) formData.append("file", file);
 
     const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/upload", true);
 
-    xhr.open("POST", "/upload", true); window.__dropairUploadXhr = xhr;
+    let lastPercent = -1;
 
+    xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const percent = Math.round((e.loaded / e.total) * 100);
+        if (percent === lastPercent) return;
+        lastPercent = percent;
+        setDockUploadProgress(percent);
+    };
 
-    xhr.upload.onprogress = function (e) {
+    xhr.onload = () => {
+        fileInput.value = "";
 
-        if (e.lengthComputable) {
-
-            const percent = Math.round(
-                (e.loaded / e.total) * 100
-            );
-
-            uploadBtn.textContent = percent + "%"; setDockUploadProgress(percent);
-
-            uploadBtn.style.background =
-                `linear-gradient(
-                    90deg,
-                    #444 ${percent}%,
-                    #222 ${percent}%
-                )`;
+        if (xhr.status !== 200) {
+            resetDock();
+            return;
         }
+
+        setDockDone();
+
+        // The server broadcasts an SSE event after every upload; only refresh
+        // ourselves when that channel isn't open.
+        if (!eventSource || eventSource.readyState !== EventSource.OPEN) getFiles();
     };
 
-
-    xhr.onload = function () {
-
-        if (xhr.status === 200) {
-
-            uploadBtn.textContent = "Done";
-
-            uploadBtn.style.background = "#28a745"; setDockDone();
-
-
-            setTimeout(() => {
-
-                resetAdaptiveDock(); uploadBtn.disabled = false;
-
-                uploadBtn.textContent = "Upload";
-
-                uploadBtn.style.background = "#222";
-
-                fileInput.value = "";
-
-                fileName.textContent = "Select files";
-
-                getFiles();
-
-            }, 1000);
-
-        } else {
-
-            resetAdaptiveDock(); uploadBtn.disabled = false;
-
-            uploadBtn.textContent = "Upload";
-
-            uploadBtn.style.background = "#222";
-        }
+    xhr.onerror = () => {
+        fileInput.value = "";
+        resetDock();
     };
 
-
-    xhr.onerror = function () {
-
-        resetAdaptiveDock(); uploadBtn.disabled = false;
-
-        uploadBtn.textContent = "Upload";
-
-        uploadBtn.style.background = "#222";
-    };
-
-
-    xhr.send(fromData);
+    setDockUploadProgress(0);
+    xhr.send(formData);
 }
-
-
-uploadBtn.addEventListener("click", () => {
-    uploadFiles();
-});
-
-
-// --------------------------------------------------
-// File input
-// --------------------------------------------------
 
 fileInput.addEventListener("change", () => {
-
-    const files = fileInput.files;
-
-
-    if (files.length > 0) {
-
-        if (files.length === 1) {
-
-            fileName.textContent =
-                files[0].name;
-
-        } else {
-
-            fileName.textContent =
-                `${files.length} files selected`;
-        }
-
-    } else {
-
-        fileName.textContent =
-            "Select files";
-    }
+    if (fileInput.files.length > 0) uploadFiles(fileInput.files);
 });
-
-
-// --------------------------------------------------
-// Get files
-// --------------------------------------------------
-
-async function getFiles() {
-
-    const response = await fetch("/api/files");
-
-    const files = await response.json();
-
-    renderGallery(files);
-}
-
-
-// --------------------------------------------------
-// Render gallery
-// --------------------------------------------------
-
-function renderGallery(files) {
-
-    galleryContainer.innerHTML = "";
-
-
-    // Drop selections for files that no longer exist.
-    if (selectedFiles.size > 0) {
-
-        const currentNames =
-            new Set(files.map(f => f.filename));
-
-
-        for (const name of Array.from(selectedFiles)) {
-
-            if (!currentNames.has(name)) {
-                selectedFiles.delete(name);
-            }
-        }
-    }
-
-
-    if (!files || files.length === 0) {
-
-        galleryContainer.innerHTML =
-            '<p class="empty-msg">No files yet</p>';
-
-        updateSelectionBar();
-
-        return;
-    }
-
-
-    for (const file of files) {
-
-        const type =
-            getFileType(file.filename);
-
-        const url =
-            fileUrl(file.filename);
-
-        const isSelected =
-            selectedFiles.has(file.filename);
-
-
-        const item =
-            document.createElement("div");
-
-        item.className =
-            "gallery-item" +
-            (isSelected ? " selected" : "");
-
-        item.dataset.filename =
-            file.filename;
-
-        item.dataset.type =
-            type;
-
-        item.title =
-            file.filename;
-
-
-        let thumbHtml;
-
-
-        if (type === "image") {
-
-            thumbHtml = `
-                <img
-                    src="${url}"
-                    alt="${escapeHtml(file.filename)}"
-                    loading="lazy"
-                    draggable="false"
-                >
-            `;
-
-        } else if (type === "video") {
-
-            thumbHtml = `
-                <video
-                    src="${url}#t=0.1"
-                    preload="metadata"
-                    muted
-                    playsinline
-                ></video>
-
-                <div class="play-badge">
-                    &#9654;
-                </div>
-            `;
-
-        } else {
-
-            const ext =
-                getExt(file.filename) || "file";
-
-
-            thumbHtml = `
-                <div class="file-icon">
-                    ${escapeHtml(
-                        ext.slice(0, 4).toUpperCase()
-                    )}
-                </div>
-            `;
-        }
-
-
-        item.innerHTML = `
-            <div class="thumb">
-                ${thumbHtml}
-            </div>
-
-            <div
-                class="select-toggle"
-                role="checkbox"
-                aria-checked="${isSelected}"
-            ></div>
-        `;
-
-
-        galleryContainer.appendChild(item);
-    }
-
-
-    updateSelectionBar();
-}
 
 
 // --------------------------------------------------
@@ -369,21 +251,20 @@ function renderGallery(files) {
 // --------------------------------------------------
 
 function triggerDownload(filename) {
-
-    const a =
-        document.createElement("a");
-
-    a.href =
-        fileUrl(filename);
-
-    a.download =
-        filename;
-
+    const a = document.createElement("a");
+    a.href = fileUrl(filename);
+    a.download = filename;
     document.body.appendChild(a);
-
     a.click();
-
     a.remove();
+}
+
+function downloadSelected() {
+    // Staggered so browsers don't drop or block back-to-back downloads.
+    Array.from(selectedFiles).forEach((filename, i) => {
+        setTimeout(() => triggerDownload(filename), i * 350);
+    });
+    clearSelection();
 }
 
 
@@ -391,163 +272,91 @@ function triggerDownload(filename) {
 // Lightbox
 // --------------------------------------------------
 
+// Lets a second tap on the just-opened preview act as a double-click download.
+let previewTap = null;
+
 function openLightbox(filename, type) {
-
-    const url =
-        fileUrl(filename);
-
-    lightboxMedia.innerHTML = "";
-
+    const url = fileUrl(filename);
+    lightboxMedia.replaceChildren();
 
     if (type === "image") {
-
-        const img =
-            document.createElement("img");
-
-        img.src =
-            url;
-
-        img.alt =
-            filename;
-
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = filename;
         lightboxMedia.appendChild(img);
-
-
     } else if (type === "video") {
-
-        const video =
-            document.createElement("video");
-
-        video.src =
-            url;
-
-        video.controls =
-            true;
-
-        video.autoplay =
-            true;
-
+        const video = document.createElement("video");
+        video.src = url;
+        video.controls = true;
+        video.autoplay = true;
         lightboxMedia.appendChild(video);
-
-
     } else {
-
-        // Generic file — no inline render.
-        const ext =
-            getExt(filename) || "file";
-
-
-        const badge =
-            document.createElement("div");
-
-        badge.className =
-            "lightbox-file-badge";
-
-
-        badge.innerHTML = `
-            <div class="lightbox-file-ext">
-                ${escapeHtml(
-                    ext.slice(0, 6).toUpperCase()
-                )}
-            </div>
-
-            <div class="lightbox-file-name">
-                ${escapeHtml(filename)}
-            </div>
-        `;
-
-
+        // Generic file: no inline render.
+        const badge = document.createElement("div");
+        badge.className = "lightbox-file-badge";
+        badge.innerHTML = `<div class="lightbox-file-ext">${escapeHtml((getExt(filename) || "file").slice(0, 6).toUpperCase())}</div><div class="lightbox-file-name">${escapeHtml(filename)}</div>`;
         lightboxMedia.appendChild(badge);
     }
 
+    lightboxName.textContent = filename;
+    lightboxDownload.href = url;
+    lightboxDownload.download = filename;
 
-    lightboxName.textContent =
-        filename;
-
-    lightboxDownload.href =
-        url;
-
-    lightboxDownload.download =
-        filename;
-
-    window.__dropairPreviewTap = { filename, time: Date.now() }; lightbox.classList.remove("hidden");
+    previewTap = { filename, time: Date.now() };
+    lightbox.classList.remove("hidden");
 }
-
 
 function closeLightbox() {
-
     lightbox.classList.add("hidden");
-
-    lightboxMedia.innerHTML = "";
+    // Clearing the media stops any playing video and frees its connection.
+    lightboxMedia.replaceChildren();
 }
 
-
-lightboxClose.addEventListener(
-    "click",
-    closeLightbox
-);
-
+lightboxClose.addEventListener("click", closeLightbox);
 
 lightbox.addEventListener("click", (e) => {
-
-    if (e.target === lightbox) {
+    if (previewTap && selectedFiles.size === 0 && Date.now() - previewTap.time <= DOUBLE_TAP_MS) {
+        e.preventDefault();
+        e.stopPropagation();
+        const { filename } = previewTap;
+        previewTap = null;
         closeLightbox();
+        actionFeedback("download");
+        triggerDownload(filename);
+        return;
     }
-});
 
+    if (e.target === lightbox) closeLightbox();
+}, true);
 
 document.addEventListener("keydown", (e) => {
-
-    if (
-        e.key === "Escape" &&
-        !lightbox.classList.contains("hidden")
-    ) {
-        closeLightbox();
-    }
+    if (e.key === "Escape" && !lightbox.classList.contains("hidden")) closeLightbox();
 });
 
 
 // --------------------------------------------------
-// Multi-select
+// Selection
 // --------------------------------------------------
 
 function setItemSelected(item, selected) {
+    if (selected) selectedFiles.add(item.dataset.filename);
+    else selectedFiles.delete(item.dataset.filename);
 
-    const filename =
-        item.dataset.filename;
+    item.classList.toggle("selected", selected);
+    item.lastElementChild.setAttribute("aria-checked", String(selected));
+}
 
-    const toggle =
-        item.querySelector(".select-toggle");
+function toggleSelect(item) {
+    setItemSelected(item, !selectedFiles.has(item.dataset.filename));
+    syncDock();
+}
 
-
-    if (selected) {
-
-        selectedFiles.add(filename);
-
-        item.classList.add("selected");
-
-
-        if (toggle) {
-            toggle.setAttribute(
-                "aria-checked",
-                "true"
-            );
-        }
-
-    } else {
-
-        selectedFiles.delete(filename);
-
-        item.classList.remove("selected");
-
-
-        if (toggle) {
-            toggle.setAttribute(
-                "aria-checked",
-                "false"
-            );
-        }
+function clearSelection() {
+    for (const item of galleryContainer.querySelectorAll(".gallery-item.selected")) {
+        setItemSelected(item, false);
     }
+    selectedFiles.clear();
+    syncDock();
 }
 
 
@@ -556,481 +365,272 @@ function setItemSelected(item, selected) {
 // --------------------------------------------------
 
 let dragSelectActive = false;
-
 let dragPaintValue = true;
-
 let dragVisited = new Set();
-
 let longPressTimer = null;
-
-let longPressItem = null;
-
 let longPressTriggered = false;
 
-const LONG_PRESS_MS = 500;
+galleryContainer.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
 
+    const item = e.target.closest(".gallery-item");
+    if (!item) return;
 
-// Start long press
-galleryContainer.addEventListener(
-    "pointerdown",
-    (e) => {
+    longPressTriggered = false;
+    clearTimeout(longPressTimer);
 
-        // Only left mouse button
-        if (e.pointerType === "mouse" && e.button !== 0) {
-            return;
-        }
+    longPressTimer = setTimeout(() => {
+        longPressTriggered = true;
+        dragSelectActive = true;
 
+        const filename = item.dataset.filename;
+        dragVisited = new Set([filename]);
 
-        const item =
-            e.target.closest(".gallery-item");
+        // If selected -> start unselecting. If not selected -> start selecting.
+        dragPaintValue = !selectedFiles.has(filename);
+        setItemSelected(item, dragPaintValue);
+        syncDock();
+    }, LONG_PRESS_MS);
+});
 
+document.addEventListener("pointermove", (e) => {
+    if (!dragSelectActive) return;
 
-        if (
-            !item ||
-            !galleryContainer.contains(item)
-        ) {
-            return;
-        }
+    const item = document.elementFromPoint(e.clientX, e.clientY)?.closest(".gallery-item");
+    if (!item || !galleryContainer.contains(item) || dragVisited.has(item.dataset.filename)) return;
 
-
-        longPressItem =
-            item;
-
-        longPressTriggered =
-            false;
-
-
-        // Cancel any old timer
-        if (longPressTimer) {
-
-            clearTimeout(
-                longPressTimer
-            );
-
-            longPressTimer =
-                null;
-        }
-
-
-        // Start long press timer
-        longPressTimer =
-            setTimeout(() => {
-
-                longPressTriggered =
-                    true;
-
-                dragSelectActive =
-                    true;
-
-
-                const filename =
-                    item.dataset.filename;
-
-
-                dragVisited =
-                    new Set([filename]);
-
-
-                // If selected -> start unselecting.
-                // If not selected -> start selecting.
-                dragPaintValue =
-                    !selectedFiles.has(filename);
-
-
-                setItemSelected(
-                    item,
-                    dragPaintValue
-                );
-
-
-                updateSelectionBar();
-
-
-            }, LONG_PRESS_MS);
-    }
-);
-
-
-// --------------------------------------------------
-// Move across thumbnails
-// --------------------------------------------------
-
-document.addEventListener(
-    "pointermove",
-    (e) => {
-
-        if (!dragSelectActive) {
-            return;
-        }
-
-
-        const el =
-            document.elementFromPoint(
-                e.clientX,
-                e.clientY
-            );
-
-
-        if (!el) {
-            return;
-        }
-
-
-        const item =
-            el.closest(".gallery-item");
-
-
-        if (
-            !item ||
-            !galleryContainer.contains(item)
-        ) {
-            return;
-        }
-
-
-        const filename =
-            item.dataset.filename;
-
-
-        // Don't process same item again
-        if (dragVisited.has(filename)) {
-            return;
-        }
-
-
-        dragVisited.add(filename);
-
-
-        setItemSelected(
-            item,
-            dragPaintValue
-        );
-
-
-        updateSelectionBar();
-    }
-);
-
-
-// --------------------------------------------------
-// End long press
-// --------------------------------------------------
-
-function cancelLongPress() {
-
-    if (longPressTimer) {
-
-        clearTimeout(
-            longPressTimer
-        );
-
-        longPressTimer =
-            null;
-    }
-
-    longPressItem =
-        null;
-}
-
+    dragVisited.add(item.dataset.filename);
+    setItemSelected(item, dragPaintValue);
+    syncDock();
+});
 
 function endDragSelect() {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
 
-    cancelLongPress();
+    if (!dragSelectActive) return;
 
-
-    if (!dragSelectActive) {
-        return;
-    }
-
-
-    dragSelectActive =
-        false;
-
+    dragSelectActive = false;
     dragVisited.clear();
-
-    updateSelectionBar();
+    syncDock();
 }
 
-
-document.addEventListener(
-    "pointerup",
-    endDragSelect
-);
-
-
-document.addEventListener(
-    "pointercancel",
-    endDragSelect
-);
-
-
-// --------------------------------------------------
-// Selection bar
-// --------------------------------------------------
-
-function updateSelectionBar() {
-
-    if (selectedFiles.size === 0) {
-
-        selectionBar.classList.add(
-            "hidden"
-        );
-
-        selectionCount.textContent =
-            "0 selected";
-
-    } else {
-
-        selectionBar.classList.remove(
-            "hidden"
-        );
-
-        selectionCount.textContent =
-            `${selectedFiles.size} selected`;
-    }
-}
-
-
-// --------------------------------------------------
-// Toggle single selection
-// --------------------------------------------------
-
-function toggleSelect(item) {
-
-    const filename =
-        item.dataset.filename;
-
-    const selected =
-        selectedFiles.has(filename);
-
-
-    setItemSelected(
-        item,
-        !selected
-    );
-
-
-    updateSelectionBar();
-}
-
-
-// --------------------------------------------------
-// Clear selection
-// --------------------------------------------------
-
-function clearSelection() {
-
-    for (const filename of selectedFiles) {
-
-        const item =
-            galleryContainer.querySelector(
-                `.gallery-item[data-filename="${cssEscape(filename)}"]`
-            );
-
-
-        if (item) {
-
-            item.classList.remove(
-                "selected"
-            );
-
-
-            const toggle =
-                item.querySelector(
-                    ".select-toggle"
-                );
-
-
-            if (toggle) {
-
-                toggle.setAttribute(
-                    "aria-checked",
-                    "false"
-                );
-            }
-        }
-    }
-
-
-    selectedFiles.clear();
-
-    updateSelectionBar();
-}
-
-
-function cssEscape(str) {
-
-    if (
-        window.CSS &&
-        CSS.escape
-    ) {
-        return CSS.escape(str);
-    }
-
-
-    return str.replace(
-        /["\\]/g,
-        "\\$&"
-    );
-}
-
-
-// --------------------------------------------------
-// Download selected
-// --------------------------------------------------
-
-downloadSelectedBtn.addEventListener(
-    "click",
-    () => {
-
-        const names =
-            Array.from(selectedFiles);
-
-
-        names.forEach(
-            (filename, i) => {
-
-                setTimeout(
-                    () => {
-                        triggerDownload(
-                            filename
-                        );
-                    },
-                    i * 350
-                );
-            }
-        );
-
-
-        clearSelection();
-    }
-);
-
-
-clearSelectionBtn.addEventListener(
-    "click",
-    clearSelection
-);
-
+document.addEventListener("pointerup", endDragSelect);
+document.addEventListener("pointercancel", endDragSelect);
 
 
 // --------------------------------------------------
 // Gallery click / double click
 // --------------------------------------------------
 //
-// NO selection:
-//   Single click  -> preview
-//   Double click  -> download
-//
-// SELECTION active:
-//   Single click  -> select / deselect
-//   Double click  -> select / deselect
-//
-// Long press:
-//   Start selection mode
-//
-// Long press + move:
-//   Select multiple files
-// --------------------------------------------------
+// NO selection:      click -> preview, double click -> download
+// SELECTION active:  click -> select / deselect
+// Long press (+ move): start selection / select multiple
 
-// Single click previews immediately. Double-click downloads natively.
 galleryContainer.addEventListener("click", (e) => {
     if (longPressTriggered) {
         longPressTriggered = false;
         return;
     }
+
     const toggle = e.target.closest(".select-toggle");
     if (toggle) {
         e.stopPropagation();
-        const item = toggle.closest(".gallery-item");
-        if (item) toggleSelect(item);
+        actionFeedback("select");
+        toggleSelect(toggle.parentElement);
         return;
     }
+
     const item = e.target.closest(".gallery-item");
     if (!item) return;
+
     if (selectedFiles.size > 0) {
-        const filename = item.dataset.filename;
-        setItemSelected(item, !selectedFiles.has(filename));
-        updateSelectionBar();
+        toggleSelect(item);
         return;
     }
-    item.classList.add("show-toggle");
+
     openLightbox(item.dataset.filename, item.dataset.type);
 });
 
 galleryContainer.addEventListener("dblclick", (e) => {
-    if (e.target.closest(".select-toggle")) return;
     const item = e.target.closest(".gallery-item");
-    if (!item || selectedFiles.size > 0) return;
+    if (!item || e.target.closest(".select-toggle") || selectedFiles.size > 0) return;
+
     e.preventDefault();
+    if (!lightbox.classList.contains("hidden")) closeLightbox();
+    actionFeedback("download");
     triggerDownload(item.dataset.filename);
 });
+
+
+// --------------------------------------------------
+// Bottom dock
+// --------------------------------------------------
+//
+// One dock that is either navigation, upload progress or selection actions.
+
+let dockResetTimer = null;
+
+function syncDock() {
+    if (selectedFiles.size > 0) {
+        dock.classList.remove("is-uploading", "is-done");
+        dock.classList.add("is-selecting");
+        dock.style.removeProperty("--upload-progress");
+        dockStatus.textContent = `${selectedFiles.size} selected`;
+        return;
+    }
+
+    dock.classList.remove("is-selecting");
+    if (!dock.classList.contains("is-uploading") && !dock.classList.contains("is-done")) {
+        dockStatus.textContent = "";
+    }
+}
+
+function resetDock() {
+    clearTimeout(dockResetTimer);
+    const wasDone = dock.classList.contains("is-done");
+
+    dock.classList.remove("is-uploading", "is-done", "is-selecting");
+    dock.style.removeProperty("--upload-progress");
+    dockStatus.textContent = "";
+
+    if (wasDone) actionFeedback("reset");
+    syncDock();
+}
+
+function setDockUploadProgress(percent) {
+    dock.classList.remove("is-done", "is-selecting");
+    dock.classList.add("is-uploading");
+    dock.style.setProperty("--upload-progress", percent + "%");
+    dockStatus.textContent = percent + "%";
+}
+
+function setDockDone() {
+    dock.classList.remove("is-uploading", "is-selecting");
+    dock.classList.add("is-done");
+    dock.style.setProperty("--upload-progress", "100%");
+    dockStatus.textContent = "Done";
+    actionFeedback("done");
+
+    clearTimeout(dockResetTimer);
+    dockResetTimer = setTimeout(resetDock, 1100);
+}
+
+dock.addEventListener("click", (e) => {
+    const action = e.target.closest("[data-dock-action]")?.dataset.dockAction;
+
+    if (action === "home") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (action === "gallery") {
+        document.querySelector(".section-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (action === "upload") {
+        fileInput.click();
+    } else if (action === "cancel") {
+        clearSelection();
+    } else if (action === "download") {
+        actionFeedback("download");
+        downloadSelected();
+    }
+});
+
+
+// --------------------------------------------------
+// Tactile / audio feedback
+// --------------------------------------------------
+
+const FEEDBACK_TONES = { download: 620, done: 760, reset: 350, select: 460 };
+let audioContext = null;
+
+function actionFeedback(type) {
+    if (navigator.vibrate) navigator.vibrate(type === "download" ? [8, 24, 10] : type === "done" ? [10, 28, 12] : 6);
+
+    try {
+        audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+
+        oscillator.type = "sine";
+        oscillator.frequency.value = FEEDBACK_TONES[type] || 460;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.035, now + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+        oscillator.connect(gain).connect(audioContext.destination);
+        oscillator.start();
+        oscillator.stop(now + 0.08);
+    } catch (_) { /* Audio is a progressive enhancement. */ }
+}
+
+
+// --------------------------------------------------
+// Gallery options: sort and tile density
+// --------------------------------------------------
+
+function setOptionsMenuOpen(open) {
+    optionsMenu.classList.toggle("open", open);
+    optionsMenu.setAttribute("aria-hidden", String(!open));
+}
+
+optionsButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOptionsMenuOpen(!optionsMenu.classList.contains("open"));
+});
+
+optionsMenu.addEventListener("click", (e) => {
+    const sortButton = e.target.closest("[data-sort]");
+    const layoutButton = e.target.closest("[data-layout]");
+
+    if (sortButton) {
+        activeSort = sortButton.dataset.sort;
+        optionsMenu.querySelectorAll("[data-sort]").forEach((b) => b.classList.toggle("active", b === sortButton));
+        getFiles();
+    }
+
+    if (layoutButton) {
+        galleryContainer.classList.toggle("compact", layoutButton.dataset.layout === "compact");
+        optionsMenu.querySelectorAll("[data-layout]").forEach((b) => b.classList.toggle("active", b === layoutButton));
+    }
+});
+
+document.addEventListener("click", (e) => {
+    if (!e.target.closest(".options-menu") && !e.target.closest("#optionsButton")) setOptionsMenuOpen(false);
+});
+
+
 // --------------------------------------------------
 // SSE
 // --------------------------------------------------
 
 function connectSSE() {
+    disconnectSSE();
 
-    if (eventSource) {
+    eventSource = new EventSource("/events");
 
-        eventSource.close();
-    }
+    eventSource.onmessage = (event) => {
+        if (JSON.parse(event.data).type === "file-uploaded") getFiles();
+    };
 
-
-    eventSource =
-        new EventSource(
-            "/events"
-        );
-
-
-    eventSource.onmessage =
-        function (event) {
-
-            const data =
-                JSON.parse(
-                    event.data
-                );
-
-
-            if (
-                data.type ===
-                "file-uploaded"
-            ) {
-
-                // Refresh file list
-                getFiles();
-            }
-        };
-
-
-    eventSource.onerror =
-        function () {
-
-            console.log(
-                "SSE connection error, reconnecting..."
-            );
-
-
-            eventSource.close();
-
-
-            setTimeout(
-                connectSSE,
-                3000
-            );
-        };
+    eventSource.onerror = () => {
+        disconnectSSE();
+        setTimeout(() => { if (!document.hidden && !eventSource) connectSSE(); }, 3000);
+    };
 }
-
 
 function disconnectSSE() {
-
-    if (eventSource) {
-
-        eventSource.close();
-
-        eventSource = null;
-    }
+    if (!eventSource) return;
+    eventSource.close();
+    eventSource = null;
 }
+
+// Drop the connection while the tab is hidden; catch up when it returns.
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        disconnectSSE();
+    } else {
+        getFiles();
+        connectSSE();
+    }
+});
 
 
 // --------------------------------------------------
@@ -1038,208 +638,4 @@ function disconnectSSE() {
 // --------------------------------------------------
 
 getFiles();
-
 connectSSE();
-
-
-// --------------------------------------------------
-// Page visibility
-// --------------------------------------------------
-
-document.addEventListener(
-    "visibilitychange",
-    () => {
-
-        if (document.hidden) {
-
-            disconnectSSE();
-
-        } else {
-
-            getFiles();
-
-            connectSSE();
-        }
-    }
-);
-
-// Bottom dock actions
-for (const button of document.querySelectorAll("[data-dock-action]")) {
-    button.addEventListener("click", () => {
-        const action = button.dataset.dockAction;
-        if (action === "home") {
-            window.scrollTo({ top: 0, behavior: "smooth" });
-        } else if (action === "gallery") {
-            document.querySelector(".section-heading")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        } else if (action === "upload") {
-            fileInput.click();
-        }
-    });
-}
-
-// The bottom dock is the upload entry point. Upload immediately after choosing files.
-fileInput.addEventListener("change", () => {
-    if (fileInput.files && fileInput.files.length > 0) {
-        uploadFiles();
-    }
-});
-
-// Keep one dock in sync with the current app mode.
-const adaptiveDock = document.querySelector(".bottom-dock");
-const dockStatus = adaptiveDock?.querySelector(".dock-status");
-const originalUpdateSelectionBar = updateSelectionBar;
-updateSelectionBar = function () {
-    originalUpdateSelectionBar();
-    if (!adaptiveDock) return;
-    if (selectedFiles.size > 0) {
-        adaptiveDock.classList.add("is-selecting");
-        if (dockStatus) dockStatus.textContent = `${selectedFiles.size} selected`;
-    } else {
-        adaptiveDock.classList.remove("is-selecting");
-        if (!adaptiveDock.classList.contains("is-uploading") && dockStatus) dockStatus.textContent = "";
-    }
-};
-adaptiveDock?.querySelector('[data-dock-action="download"]')?.addEventListener("click", () => downloadSelectedBtn.click());
-adaptiveDock?.querySelector('[data-dock-action="cancel"]')?.addEventListener("click", () => {
-    if (adaptiveDock.classList.contains("is-uploading") && window.__dropairUploadXhr) {
-        window.__dropairUploadXhr.abort();
-        resetAdaptiveDock(); uploadBtn.disabled = false;
-        fileInput.value = "";
-        resetAdaptiveDock();
-    } else {
-        clearSelection();
-    }
-});
-
-// Lightweight, opt-in tactile/audio feedback for intentional actions.
-let dockAudioContext = null;
-function actionFeedback(type = "soft") {
-    if (navigator.vibrate) navigator.vibrate(type === "download" ? [8, 24, 10] : type === "done" ? [10, 28, 12] : 6);
-    try {
-        dockAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = dockAudioContext.createOscillator();
-        const gain = dockAudioContext.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.value = type === "download" ? 620 : type === "done" ? 760 : type === "reset" ? 350 : 460;
-        gain.gain.setValueAtTime(0.0001, dockAudioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.035, dockAudioContext.currentTime + 0.008);
-        gain.gain.exponentialRampToValueAtTime(0.0001, dockAudioContext.currentTime + 0.075);
-        oscillator.connect(gain).connect(dockAudioContext.destination);
-        oscillator.start();
-        oscillator.stop(dockAudioContext.currentTime + 0.08);
-    } catch (_) { /* Audio is a progressive enhancement. */ }
-}
-galleryContainer.addEventListener("click", (e) => {
-    if (e.target.closest(".select-toggle")) actionFeedback("select");
-});
-galleryContainer.addEventListener("dblclick", (e) => {
-    if (e.target.closest(".gallery-item") && !e.target.closest(".select-toggle")) actionFeedback("download");
-});
-adaptiveDock?.querySelector('[data-dock-action="download"]')?.addEventListener("click", () => actionFeedback("download"));
-
-function resetAdaptiveDock() {
-    adaptiveDock?.classList.remove("is-uploading", "is-done", "is-selecting");
-    adaptiveDock?.style.removeProperty("--upload-progress");
-    if (dockStatus) dockStatus.textContent = "";
-}
-function setDockUploadProgress(percent) {
-    adaptiveDock?.classList.remove("is-done", "is-selecting");
-    adaptiveDock?.classList.add("is-uploading");
-    adaptiveDock?.style.setProperty("--upload-progress", percent + "%");
-    if (dockStatus) dockStatus.textContent = percent + "%";
-}
-function setDockDone() {
-    adaptiveDock?.classList.remove("is-uploading", "is-selecting");
-    adaptiveDock?.classList.add("is-done");
-    adaptiveDock?.style.setProperty("--upload-progress", "100%");
-    if (dockStatus) dockStatus.textContent = "Done";
-    actionFeedback("done");
-    setTimeout(resetAdaptiveDock, 1100);
-}
-const previousSelectionDockSync = updateSelectionBar;
-updateSelectionBar = function () {
-    previousSelectionDockSync();
-    if (!adaptiveDock) return;
-    if (selectedFiles.size > 0) {
-        adaptiveDock.classList.remove("is-uploading", "is-done");
-        adaptiveDock.classList.add("is-selecting");
-        adaptiveDock.style.removeProperty("--upload-progress");
-        if (dockStatus) dockStatus.textContent = `${selectedFiles.size} selected`;
-    } else if (!adaptiveDock.classList.contains("is-uploading") && !adaptiveDock.classList.contains("is-done")) {
-        adaptiveDock.classList.remove("is-selecting");
-        if (dockStatus) dockStatus.textContent = "";
-    }
-};
-
-// Final reset wrapper: one fast spring handoff and one subtle reset cue.
-const guardedResetAdaptiveDock = resetAdaptiveDock;
-resetAdaptiveDock = function () {
-    const wasDone = adaptiveDock?.classList.contains("is-done");
-    guardedResetAdaptiveDock();
-    if (wasDone) actionFeedback("reset");
-};
-
-// Capture double-click before the preview/lightbox click sequence can consume it.
-galleryContainer.addEventListener("dblclick", (e) => {
-    const toggle = e.target.closest(".select-toggle");
-    const item = e.target.closest(".gallery-item");
-    if (!item || toggle || selectedFiles.size > 0) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    if (!lightbox.classList.contains("hidden")) closeLightbox();
-    actionFeedback("download");
-    triggerDownload(item.dataset.filename);
-}, true);
-
-// A preview opens immediately; keep the double-click gesture alive across the lightbox.
-lightbox.addEventListener("click", (e) => {
-    const tap = window.__dropairPreviewTap;
-    if (!tap || Date.now() - tap.time > 430) return;
-    if (selectedFiles.size > 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    window.__dropairPreviewTap = null;
-    closeLightbox();
-    actionFeedback("download");
-    triggerDownload(tap.filename);
-}, true);
-
-// Gallery options: sort by available file metadata and switch tile density.
-let activeSort = "modified";
-const optionsButton = document.getElementById("optionsButton");
-const optionsMenu = document.getElementById("optionsMenu");
-function sortGalleryFiles(files) {
-    return [...files].sort((a, b) => {
-        if (activeSort === "size") return (b.size || 0) - (a.size || 0);
-        if (activeSort === "name") return a.filename.localeCompare(b.filename);
-        return (b.modified || 0) - (a.modified || 0);
-    });
-}
-async function refreshSortedGallery() {
-    const response = await fetch("/api/files");
-    renderGallery(sortGalleryFiles(await response.json()));
-}
-optionsButton?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    optionsMenu?.classList.toggle("open");
-    optionsMenu?.setAttribute("aria-hidden", String(!optionsMenu.classList.contains("open")));
-});
-optionsMenu?.addEventListener("click", (event) => {
-    const sortButton = event.target.closest("[data-sort]");
-    const layoutButton = event.target.closest("[data-layout]");
-    if (sortButton) {
-        activeSort = sortButton.dataset.sort;
-        optionsMenu.querySelectorAll("[data-sort]").forEach((button) => button.classList.toggle("active", button === sortButton));
-        refreshSortedGallery();
-    }
-    if (layoutButton) {
-        galleryContainer.classList.toggle("compact", layoutButton.dataset.layout === "compact");
-        optionsMenu.querySelectorAll("[data-layout]").forEach((button) => button.classList.toggle("active", button === layoutButton));
-    }
-});
-document.addEventListener("click", (event) => {
-    if (!event.target.closest(".options-menu") && !event.target.closest("#optionsButton")) {
-        optionsMenu?.classList.remove("open");
-        optionsMenu?.setAttribute("aria-hidden", "true");
-    }
-});

@@ -3,16 +3,16 @@ import path from "path";
 import os from "os"
 import startServer from "./server.js";
 import {exec} from "child_process"
-import genQr from "./utils/qr.js";
 
 const commnd = process.argv[2]
 const deaultPath = path.join(os.homedir(),".dropair")
 
 
 function run(commnd){
-    exec(commnd), (error, stdout, stderr) => {
+    exec(commnd, (error, stdout, stderr) => {
         if (error) {
             console.error(`exec error: ${error}`);
+            process.exitCode = 1;
             return;
         }
         if(stderr){
@@ -21,7 +21,7 @@ function run(commnd){
         if(stdout){
             console.log(stdout)
         }
-    }
+    })
 
 }
 
@@ -41,8 +41,8 @@ function update() {
 }
 
 function url() {
-    console.log(startServer())
-
+    // startServer() prints the URL and QR code itself.
+    startServer()
 }
 
 function help() {
@@ -50,8 +50,9 @@ function help() {
 Usage:
 
     dropair             Start Dropair
-    dropair --help.     Show help
-    dropair --unistall  Uninstall dropair
+    dropair --url       Start Dropair (prints the URL and QR code)
+    dropair --help      Show help
+    dropair --uninstall Uninstall dropair
     dropair --update    Update dropair
 `)
 }
